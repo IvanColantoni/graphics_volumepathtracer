@@ -1450,6 +1450,108 @@ template <typename T>
 static void subdivide_catmullclark(
     std::vector<vec4i>& quads, std::vector<T>& vert, bool lock_boundary) {
   // YOUR CODE GOES HERE ------------------------------------------
+  //<init edges>
+  //construct edge map and get edges and boundary
+  auto emap = make_edge_map(quads);
+  auto edges = get_edges(emap);
+  auto boundary = get_boundary(emap);
+  // initialize number of elements
+  auto nv = (int)vert.size();
+  auto ne = (int)edges.size();
+  auto nb = (int)boundary.size();
+  auto nf = (int)quads.size();
+  //create vertices --> phase 1
+  auto tverts = std::vector<T>(nv + ne + nf);
+  for (auto v : yocto::common::range(nv)){
+    tverts.push_back(vert[v]);
+  }
+  for (auto e : yocto::common::range(ne)){
+    tverts.push_back((vert[edges[e].x] + vert[edges[e].y]) / 2);
+  }
+  for (auto i : yocto::common::range(nf)){
+    auto q = quads[i];
+    if (q.z != q.w)
+    // quads
+    tverts.push_back((vert[q.x] + vert[q.y] + vert[q.z] + vert[q.w]) / 4);
+    else
+    // triangles
+    tverts.push_back((vert[q.x] + vert[q.y] + vert[q.y]) / 3);
+  }
+  //<create faces>
+  auto tquads = std::vector<vec4i>(nf * 4);
+  for (auto i : yocto::common::range(nf)){
+    auto q = quads[i];
+    if(q.z != q.w) {
+      tquads.push_back({q.x, nv+edge_index(emap,{q.x,q.y}), nv+ne+i, nv+edge_index(emap,{q.w, q.x})});
+      tquads.push_back({q.y, nv+edge_index(emap,{q.y,q.z}), nv+ne+i, nv+edge_index(emap,{q.x, q.y})});
+      tquads.push_back({q.z, nv+edge_index(emap,{q.z, q.w}), nv+ne+i, nv+edge_index(emap,{q.y, q.z})});
+      tquads.push_back({q.w, nv+edge_index(emap,{q.w, q.x}), nv+ne+i, nv+edge_index(emap,{q.z, q.w})});
+    }
+    else {
+      tquads.push_back({q.x, nv+edge_index(emap,{q.x, q.y}), nv+ne+i, nv+edge_index(emap,{q.z, q.x})});
+      tquads.push_back({q.y, nv+edge_index(emap,{q.y, q.z}), nv+ne+i, nv+edge_index(emap,{q.x, q.y})});
+      tquads.push_back({q.z, nv+edge_index(emap,{q.z, q.x}), nv+ne+i, nv+edge_index(emap,{q.y, q.z})});
+    }
+  }
+  //<setup boundary>
+  auto tboundary = std::vector<vec2i>(nb * 2);
+  for ( auto i : yocto::common::range(nb)){
+    auto e = boundary[i];
+    tboundary.push_back({e.x, nv+edge_index(emap,e)});
+    tboundary.push_back({nv+edge_index(emap,e), e.y});
+  }
+  auto tcrease_edges = std::vector<vec2i>();
+  auto tcrease_verts = std::vector<int>();
+
+  
+  if (lock_boundary) {
+    for (auto& b : tboundary) {
+    tcrease_verts.push_back(b.x);
+    tcrease_verts.push_back(b.y);
+    }
+  } else {
+    for (auto& b : tboundary) tcrease_edges.push_back(b);
+  }
+
+  // define vertex valence
+  auto tverts_val = std::vector<int>(tverts.size(), 2);
+  for (auto& e : tboundary) {
+  tverts_val[e.x] = (lock_boundary) ? 0 : 1;
+  tverts_val[e.y] = (lock_boundary) ? 0 : 1;
+  }
+  //averaging --> phase 2
+    auto avert = std::vector<T>(tverts.size(), T());
+    auto acount = std::vector<int>(tverts.size(), 0);
+    for (auto p : tcrease_verts) {
+     if (tverts_val[p] == 0) continue;
+     avert[p] += tverts[p]; acount[p] += 1;
+    }
+    for (auto& e : tcrease_edges) {
+    auto c = (tverts[e.x] + tverts[e.y]) / 2;
+      for (auto vid : {e.x,e.y}) {
+      if (tverts_val[vid] != 1) continue;
+      avert[vid] += c; acount[vid] += 1;
+     }
+    }
+    for (auto& q : tquads) {
+    auto c = (tverts[q.x] + tverts[q.y] +
+    tverts[q.z] + tverts[q.w]) / 4;
+      for (auto vid : {q.x,q.y,q.z,q.w}) {
+        if (tverts_val[vid] != 2) continue;
+       avert[vid] += c;
+       acount[vid] += 1;
+      }
+      }
+    for (auto i = 0; i < tverts.size(); i++){
+      avert[i] /= (float)acount[i];
+      }
+
+  //correction --> phase 3 
+  for (auto i = 0; i < tverts.size(); i++) {
+    if (tverts_val[i] != 2) continue;
+    avert[i] = tverts[i] + (avert[i] - tverts[i]) * (4 / (float)acount[i]);
+  }
+  tverts = avert;
 }
 
 // get the number of subdivs
