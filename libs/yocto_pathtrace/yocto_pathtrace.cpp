@@ -286,6 +286,7 @@ static std::pair<vec3f, vec3f> eval_element_tangents(
 static vec3f eval_normalmap(
     const ptr::object* object, int element, const vec2f& uv) {
   // YOUR CODE GOES HERE ------------------------------------------
+  
   return eval_normal(object, element, uv);
 }
 
@@ -1461,7 +1462,7 @@ static void subdivide_catmullclark(
   auto nb = (int)boundary.size();
   auto nf = (int)quads.size();
   //create vertices --> phase 1
-  auto tverts = std::vector<T>(nv + ne + nf);
+  auto tverts = std::vector<T>();
   for (auto v : yocto::common::range(nv)){
     tverts.push_back(vert[v]);
   }
@@ -1475,10 +1476,10 @@ static void subdivide_catmullclark(
     tverts.push_back((vert[q.x] + vert[q.y] + vert[q.z] + vert[q.w]) / 4);
     else
     // triangles
-    tverts.push_back((vert[q.x] + vert[q.y] + vert[q.y]) / 3);
+    tverts.push_back((vert[q.x] + vert[q.y] + vert[q.z]) / 3);
   }
   //<create faces>
-  auto tquads = std::vector<vec4i>(nf * 4);
+  auto tquads = std::vector<vec4i>();
   for (auto i : yocto::common::range(nf)){
     auto q = quads[i];
     if(q.z != q.w) {
@@ -1494,7 +1495,7 @@ static void subdivide_catmullclark(
     }
   }
   //<setup boundary>
-  auto tboundary = std::vector<vec2i>(nb * 2);
+  auto tboundary = std::vector<vec2i>();
   for ( auto i : yocto::common::range(nb)){
     auto e = boundary[i];
     tboundary.push_back({e.x, nv+edge_index(emap,e)});
@@ -1552,7 +1553,12 @@ static void subdivide_catmullclark(
     avert[i] = tverts[i] + (avert[i] - tverts[i]) * (4 / (float)acount[i]);
   }
   tverts = avert;
-}
+   // done
+ 
+  swap(tquads, quads);
+  swap(tverts, vert);
+
+  }
 
 // get the number of subdivs
 static void subdivide_shape(ptr::shape* shape) {
