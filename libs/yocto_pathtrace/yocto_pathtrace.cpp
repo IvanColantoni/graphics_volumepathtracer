@@ -1463,14 +1463,14 @@ static void subdivide_catmullclark(
   auto nf = (int)quads.size();
   //create vertices --> phase 1
   auto tverts = std::vector<T>();
-  for (auto v : yocto::common::range(nv)){
-    tverts.push_back(vert[v]);
+  for (auto v : vert){
+    tverts.push_back(v);
   }
-  for (auto e : yocto::common::range(ne)){
-    tverts.push_back((vert[edges[e].x] + vert[edges[e].y]) / 2);
+  for (auto e : edges){
+    tverts.push_back((vert[e.x] + vert[e.y]) / 2);
   }
-  for (auto i : yocto::common::range(nf)){
-    auto q = quads[i];
+  for (auto q : quads){
+   // auto q = quads[i];
     if (q.z != q.w)
     // quads
     tverts.push_back((vert[q.x] + vert[q.y] + vert[q.z] + vert[q.w]) / 4);
@@ -1496,8 +1496,8 @@ static void subdivide_catmullclark(
   }
   //<setup boundary>
   auto tboundary = std::vector<vec2i>();
-  for ( auto i : yocto::common::range(nb)){
-    auto e = boundary[i];
+  for ( auto e : boundary){
+    //auto e = boundary[i];
     tboundary.push_back({e.x, nv+edge_index(emap,e)});
     tboundary.push_back({nv+edge_index(emap,e), e.y});
   }
@@ -1524,7 +1524,7 @@ static void subdivide_catmullclark(
     auto avert = std::vector<T>(tverts.size(), T());
     auto acount = std::vector<int>(tverts.size(), 0);
     for (auto p : tcrease_verts) {
-     if (tverts_val[p] == 0) continue;
+     if (tverts_val[p] != 0) continue;
      avert[p] += tverts[p]; acount[p] += 1;
     }
     for (auto& e : tcrease_edges) {
@@ -1581,7 +1581,7 @@ static void subdivide_shape(ptr::shape* shape) {
     auto quadstexcoord = shape->subdiv_quadstexcoord;
     auto fvtexcoords   = shape->subdiv_texcoords;
     for (auto idx = 0; idx < shape->subdiv_level; idx++) {
-      subdivide_catmullclark(quadstexcoord, fvtexcoords, false);
+      subdivide_catmullclark(quadstexcoord, fvtexcoords, true);
     }
     auto fvnormals = compute_normals(quadspos, fvpositions);
     auto [quads, positions, normals, texcoords] = split_facevarying(
@@ -1595,12 +1595,14 @@ static void subdivide_shape(ptr::shape* shape) {
     for (auto idx = 0; idx < shape->positions.size(); idx++) {
       auto displacement = eval_texturef(
           shape->subdiv_displacement_tex, shape->texcoords[idx], true);
+     //shape->normals = compute_normals(shape->triangles, shape->positions);
       if (!shape->subdiv_displacement_tex->scalarb.empty() ||
           !shape->subdiv_displacement_tex->colorb.empty())
         displacement -= 0.5f;
       shape->positions[idx] += shape->normals[idx] *
                                shape->subdiv_displacement * displacement;
     }
+     shape->normals = compute_normals(shape->triangles, shape->positions);
   }
 }
 
