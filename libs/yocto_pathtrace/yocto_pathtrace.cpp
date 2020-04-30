@@ -301,7 +301,8 @@ static vec3f eval_normalmap(
     basis         = {x, y, z};
     flip_v        = dot(y, tangents.second) < 0;
     normalmap.y *= flip_v ? 1 : -1;  // flip vertical axis
-   return normalmap;
+   auto normal = normalize(basis*normalmap);
+   return normal;
    }
    }
  }
