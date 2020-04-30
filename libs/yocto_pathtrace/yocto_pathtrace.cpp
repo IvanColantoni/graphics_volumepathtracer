@@ -286,9 +286,25 @@ static std::pair<vec3f, vec3f> eval_element_tangents(
 static vec3f eval_normalmap(
     const ptr::object* object, int element, const vec2f& uv) {
   // YOUR CODE GOES HERE ------------------------------------------
-  
-  return eval_normal(object, element, uv);
-}
+  auto shape    = object->shape;
+  auto material = object->material;
+  auto texcoords = eval_texcoord(object,element,uv);
+  if (object->material->normal_tex && !shape->triangles.empty() ){
+    auto normalmap = -1 + 2 * eval_texture(material->normal_tex, texcoords, true);//maybe the problem is here
+    auto z      = eval_normal(object,element,uv);
+    auto basis  = identity3x3f;
+    auto flip_v = false;
+    if(!shape->positions.empty()) {  //this condition is optional 
+    auto tangents = eval_element_tangents(object,element);
+    auto x        = orthonormalize(tangents.first, z);
+    auto y        = normalize(cross(z, x));
+    basis         = {x, y, z};
+    flip_v        = dot(y, tangents.second) < 0;
+    normalmap.y *= flip_v ? 1 : -1;  // flip vertical axis
+   return normalmap;
+   }
+   }
+ }
 
 // Eval shading normal
 static vec3f eval_shading_normal(const ptr::object* object, int element,
